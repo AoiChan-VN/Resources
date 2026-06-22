@@ -39,7 +39,7 @@ jobs:
       # 5. Tải xuống Godot Engine Headless Linux & Export Templates
       - name: Download Godot Engine and Templates
         run: |
-          # Tạo thư mục tạm lưu trữ
+          # Tạo thư mục tạm lưu trữ (Sử dụng đúng cú pháp biến môi trường Linux)
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}
           
           # Tải Godot Editor (Linux Headless)
