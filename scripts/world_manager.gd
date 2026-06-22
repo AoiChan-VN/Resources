@@ -12,6 +12,7 @@ const CHUNK_HEIGHT: int = 64
 var _noise: FastNoiseLite = FastNoiseLite.new()
 var _active_chunks: Dictionary = {} # Định dạng lưu trữ: {Vector2i: Chunk}
 var _chunks_in_progress: Array[Vector2i] = []
+var _saved_world_data: Dictionary = {} # Dữ liệu lưu trữ nạp từ bộ nhớ máy
 var _mutex: Mutex = Mutex.new()
 var _current_player_chunk: Vector2i = Vector2i(99999, 99999)
 
@@ -19,6 +20,10 @@ func _ready() -> void:
 	if player == null:
 		push_error("[WorldManager] Lỗi: Node Player chưa được gán vào WorldManager.")
 		return
+		
+	# Nạp toàn bộ dữ liệu lưu trữ cũ từ file nhị phân nếu có trước khi sinh địa hình mới
+	_saved_world_data = SaveSystem.load_world()
+	
 	_initialize_noise_generator()
 	_update_world_generation()
 
@@ -34,6 +39,17 @@ func _process(_delta: float) -> void:
 	if new_player_chunk != _current_player_chunk:
 		_current_player_chunk = new_player_chunk
 		_update_world_generation()
+
+# Kích hoạt lưu dữ liệu thế giới nhị phân (Có thể gọi từ nút Save trên UI di động)
+func trigger_save_world() -> void:
+	_mutex.lock()
+	var success: bool = SaveSystem.save_world(_active_chunks)
+	_mutex.unlock()
+	
+	if success:
+		print("[WorldManager] Dữ liệu địa hình đã được đồng bộ nhị phân xuống bộ nhớ Mobile thành công.")
+	else:
+		push_error("[WorldManager] Quá trình ghi nhớ dữ liệu gặp sự cố hệ thống.")
 
 func _initialize_noise_generator() -> void:
 	_noise.seed = 1337
@@ -63,7 +79,7 @@ func _update_world_generation() -> void:
 				_chunks_in_progress.append(target_chunk_pos)
 				_mutex.unlock()
 				
-				# Đẩy tác vụ sinh dữ liệu Chunk vào hệ thống Multi-threading nội bộ của Godot 4
+				# Đẩy tác vụ sinh dữ liệu sang luồng phụ an toàn
 				WorkerThreadPool.submit_task(_thread_generate_chunk.bind(target_chunk_pos))
 				
 	_unload_distant_chunks(loaded_chunks)
@@ -71,37 +87,46 @@ func _update_world_generation() -> void:
 # Hàm xử lý bất đồng bộ chạy hoàn toàn trên Thread riêng biệt
 func _thread_generate_chunk(c_pos: Vector2i) -> void:
 	var blocks_data: Array = []
-	blocks_data.resize(CHUNK_WIDTH)
 	
-	var world_x_offset: int = c_pos.x * CHUNK_WIDTH
-	var world_z_offset: int = c_pos.y * CHUNK_WIDTH
+	# Kiểm tra xem dữ liệu Chunk này có sẵn trong file Save nhị phân cũ hay không
+	_mutex.lock()
+	var has_saved_data: bool = _saved_world_data.has(c_pos)
+	if has_saved_data:
+		blocks_data = _saved_world_data[c_pos]
+	_mutex.unlock()
 	
-	for x in range(CHUNK_WIDTH):
-		blocks_data[x] = []
-		blocks_data[x].resize(CHUNK_HEIGHT)
-		var global_x: float = float(world_x_offset + x)
+	# Nếu không có dữ liệu cũ, tiến hành chạy thuật toán sinh địa hình tự nhiên
+	if not has_saved_data:
+		blocks_data.resize(CHUNK_WIDTH)
+		var world_x_offset: int = c_pos.x * CHUNK_WIDTH
+		var world_z_offset: int = c_pos.y * CHUNK_WIDTH
 		
-		for y in range(CHUNK_HEIGHT):
-			blocks_data[x][y] = []
-			blocks_data[x][y].resize(CHUNK_WIDTH)
-			blocks_data[x][y].fill(BlockRegistry.BlockType.AIR)
+		for x in range(CHUNK_WIDTH):
+			blocks_data[x] = []
+			blocks_data[x].resize(CHUNK_HEIGHT)
+			var global_x: float = float(world_x_offset + x)
 			
-		for z in range(CHUNK_WIDTH):
-			var global_z: float = float(world_z_offset + z)
-			var noise_val: float = _noise.get_noise_2d(global_x, global_z)
-			
-			# Chuẩn hóa giá trị nhiễu về độ cao thực tế của địa hình [0, CHUNK_HEIGHT - 1]
-			var normalized_height: int = clampi(floori((noise_val + 1.0) * 0.5 * float(CHUNK_HEIGHT - 10)) + 5, 1, CHUNK_HEIGHT - 1)
-			
-			for y in range(normalized_height + 1):
-				var block_type: int = BlockRegistry.BlockType.STONE
-				if y == normalized_height:
-					block_type = BlockRegistry.BlockType.GRASS
-				elif y > normalized_height - 3:
-					block_type = BlockRegistry.BlockType.DIRT
-					
-				blocks_data[x][y][z] = block_type
+			for y in range(CHUNK_HEIGHT):
+				blocks_data[x][y] = []
+				blocks_data[x][y].resize(CHUNK_WIDTH)
+				blocks_data[x][y].fill(BlockRegistry.BlockType.AIR)
 				
+			for z in range(CHUNK_WIDTH):
+				var global_z: float = float(world_z_offset + z)
+				var noise_val: float = _noise.get_noise_2d(global_x, global_z)
+				
+				# Chuẩn hóa giá trị nhiễu về độ cao thực tế của địa hình
+				var normalized_height: int = clampi(floori((noise_val + 1.0) * 0.5 * float(CHUNK_HEIGHT - 10)) + 5, 1, CHUNK_HEIGHT - 1)
+				
+				for y in range(normalized_height + 1):
+					var block_type: int = BlockRegistry.BlockType.STONE
+					if y == normalized_height:
+						block_type = BlockRegistry.BlockType.GRASS
+					elif y > normalized_height - 3:
+						block_type = BlockRegistry.BlockType.DIRT
+						
+					blocks_data[x][y][z] = block_type
+					
 	# Chuyển tiếp dữ liệu thô về Main Thread an toàn để khởi tạo Node và tính toán Mesh
 	call_deferred("_finalize_chunk_on_main_thread", c_pos, blocks_data)
 
@@ -109,7 +134,7 @@ func _finalize_chunk_on_main_thread(c_pos: Vector2i, blocks_data: Array) -> void
 	_mutex.lock()
 	_chunks_in_progress.erase(c_pos)
 	
-	# Kiểm tra nếu người chơi đã di chuyển quá xa khỏi vùng cần hiển thị trong khi Thread đang chạy
+	# Kiểm tra nếu người chơi đã di chuyển quá xa khỏi vùng hiển thị trong khi Thread đang chạy
 	var distance: Vector2i = (c_pos - _current_player_chunk).abs()
 	if distance.x > RENDER_DISTANCE or distance.y > RENDER_DISTANCE:
 		_mutex.unlock()
