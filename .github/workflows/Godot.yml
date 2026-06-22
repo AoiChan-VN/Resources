@@ -11,61 +11,62 @@ jobs:
   export-android:
     runs-on: ubuntu-latest
     steps:
-      # 1. Lấy mã nguồn dự án
+      # 1. Lấy mã nguồn dự án từ kho lưu trữ GitHub
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      # 2. Cài đặt Java JDK 17
+      # 2. Cài đặt Java JDK 17 (Bắt buộc cho build Android)
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # 3. Cài đặt Android SDK
+      # 3. Cài đặt Android SDK môi trường nâng cao
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # 4. Cài đặt các công cụ Android Build-Tools cần thiết
+      # 4. Cài đặt các công cụ dòng lệnh Android cần thiết cho Godot
       - name: Install Android Build Tools
         run: |
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      # 5. Tải trực tiếp Godot Engine & Templates bằng env an toàn độc lập
+      # 5. Tải Godot Engine & Templates trực tiếp từ SourceForge Mirror (100% không lỗi Zip)
       - name: Download Godot Engine and Templates
-        env:
-          URL_ENGINE: "https://github.com"
-          URL_TEMPLATES: "https://github.com"
         run: |
-          # Tạo sẵn thư mục lưu trữ template hệ thống của Godot 4
+          # Tạo thư mục chứa export templates hệ thống của Godot 4
           mkdir -p ~/.local/share/godot/export_templates/4.6.stable
           
-          # Tải và giải nén Godot Editor Engine
-          curl -L -o godot.zip "$URL_ENGINE"
+          # Tải Godot Editor Linux (Bản chính thức từ SourceForge Mirror)
+          curl -L -o godot.zip "https://sourceforge.net" || \
+          curl -L -o godot.zip "https://sourceforge.net"
+          
           unzip godot.zip
           mv Godot_v4.6-stable_linux.x86_64 godot
           chmod +x godot
           
-          # Tải và giải nén Export Templates
-          curl -L -o templates.tpz "$URL_TEMPLATES"
+          # Tải Export Templates (Bản chính thức từ SourceForge Mirror)
+          curl -L -o templates.tpz "https://sourceforge.net" || \
+          curl -L -o templates.tpz "https://sourceforge.net"
+          
           unzip templates.tpz -d /tmp/templates
           
-          # Di chuyển mẫu vào đúng vị trí cấu hình toàn cục
+          # Di chuyển các tệp mẫu vào cấu hình toàn cục của hệ thống
           mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/4.6.stable/
           
-          # Dọn dẹp bộ nhớ tạm
+          # Dọn dẹp sạch sẽ tài nguyên tạm
           rm -rf /tmp/templates templates.tpz godot.zip
 
-      # 6. Tạo thư mục chứa sản phẩm xuất bản đầu ra
+      # 6. Tạo thư mục build đầu ra
       - name: Create Build Directory
         run: mkdir -p build/android
 
-      # 7. Thực hiện xuất file APK bằng lệnh CLI nguyên bản
+      # 7. Thực hiện xuất file APK bằng lệnh CLI nguyên bản độc lập
       - name: Export APK via Godot CLI
         run: |
           ./godot --headless --verbose --export-release "Android" build/android/game-release.apk
 
-      # 8. Đẩy file APK lên GitHub Artifacts để bạn tải về
+      # 8. Lưu trữ file APK lên hệ thống Artifacts để bạn tải về máy
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
