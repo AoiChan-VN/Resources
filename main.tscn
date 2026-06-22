@@ -1,0 +1,14 @@
+[gd_scene load_steps=1 format=3 uid="uid://b123456789abc"]
+
+[node name="Main" type="Node2D"]
+
+[node name="Label" type="Label" parent="."]
+offset_left = 139.0
+offset_top = 537.0
+offset_right = 582.0
+offset_bottom = 625.0
+theme_override_font_sizes/font_size = 64
+text = "Hello Android!"
+horizontal_alignment = 1
+vertical_alignment = 1
+ 
