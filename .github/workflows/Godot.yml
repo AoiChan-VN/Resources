@@ -12,8 +12,6 @@ jobs:
     name: Export Android APK
     
     env:
-      GODOT_VERSION: "4.3"
-      GODOT_STATUS: "stable"
       EXPORT_NAME: "mobile-3d-minecraft"
 
     steps:
@@ -38,27 +36,32 @@ jobs:
           path: |
             ~/.local/share/godot/
             /usr/local/bin/godot
-          key: ${{ runner.os }}-godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}
+          key: ${{ runner.os }}-godot-4.3-stable
 
       - name: Download Godot Editor and Export Templates
         if: steps.cache-godot.outputs.cache-hit != 'true'
         run: |
-          URL_EDITOR="https://github.com{{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip"
-          URL_TEMPLATES="https://github.com{{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz"
+          # Thiết lập link tải tĩnh tuyệt đối tránh lỗi biên dịch chuỗi trên GitHub Runner
+          URL_EDITOR="https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip"
+          URL_TEMPLATES="https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz"
           
-          wget --tries=3 --connect-timeout=15 -q "$URL_EDITOR"
-          wget --tries=3 --connect-timeout=15 -q "$URL_TEMPLATES"
+          # Thực hiện tải với cờ kiểm tra kết nối chặt chẽ
+          wget --tries=3 --connect-timeout=20 -q "$URL_EDITOR"
+          wget --tries=3 --connect-timeout=20 -q "$URL_TEMPLATES"
           
-          unzip -q Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
-          sudo mv Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64 /usr/local/bin/godot
+          # Giải nén phân hệ Godot Editor CLI
+          unzip -q Godot_v4.3-stable_linux.x86_64.zip
+          sudo mv Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
           sudo chmod +x /usr/local/bin/godot
           
-          mkdir -p ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}
-          unzip -q Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
-          mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}/
+          # Khởi tạo và thiết lập Export Templates cho hệ thống
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          unzip -q Godot_v4.3-stable_export_templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/4.3.stable/
           
-          rm -f Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
-          rm -f Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
+          # Dọn dẹp lưu trữ tạm
+          rm -f Godot_v4.3-stable_linux.x86_64.zip
+          rm -f Godot_v4.3-stable_export_templates.tpz
 
       - name: Configure Android SDK Path for Godot
         run: |
