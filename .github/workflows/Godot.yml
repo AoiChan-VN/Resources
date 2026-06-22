@@ -43,17 +43,25 @@ jobs:
       - name: Download Godot Editor and Export Templates
         if: steps.cache-godot.outputs.cache-hit != 'true'
         run: |
-          wget -q https://github.com{{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
-          wget -q https://github.com{{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
+          # Khởi tạo URL chính xác tuyệt đối theo cấu trúc release của Godot Engine
+          URL_EDITOR="https://github.com{{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip"
+          URL_TEMPLATES="https://github.com{{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz"
           
+          # Thực hiện tải về và kiểm tra tính toàn vẹn dữ liệu trực tiếp
+          wget --tries=3 --connect-timeout=10 -q "$URL_EDITOR"
+          wget --tries=3 --connect-timeout=10 -q "$URL_TEMPLATES"
+          
+          # Giải nén và phân bổ cấu trúc hệ thống chạy CLI
           unzip Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
-          mv Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64 /usr/local/bin/godot
-          chmod +x /usr/local/bin/godot
+          sudo mv Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64 /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
           
+          # Cài đặt Export Templates vào thư mục hệ thống của Godot Editor
           mkdir -p ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}
           unzip Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
           mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}/
           
+          # Dọn dẹp tài nguyên rác sau khi phân tách thành công
           rm -f Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
           rm -f Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
 
