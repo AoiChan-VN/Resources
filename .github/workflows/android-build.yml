@@ -1,0 +1,57 @@
+name: "Build Godot 4.6.3 Android APK"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Download Godot Engine & Export Templates
+        run: |
+          # Tải Godot Headless (phiên bản chạy dòng lệnh trên Linux)
+          wget https://github.com
+          unzip Godot_v4.6.3-stable_linux.x86_64.zip
+          mv Godot_v4.6.3-stable_linux.x86_64 godot
+          chmod +x godot
+
+          # Tải và cấu hình Export Templates
+          wget https://github.com
+          mkdir -p ~/.local/share/godot/export_templates/4.6.3.stable
+          unzip Godot_v4.6.3-stable_export_templates.tpz -d templates_extracted
+          mv templates_extracted/templates/* ~/.local/share/godot/export_templates/4.6.3.stable/
+          rm -rf templates_extracted Godot_v4.6.3-stable_export_templates.tpz Godot_v4.6.3-stable_linux.x86_64.zip
+
+      - name: Prepare Export Directories
+        run: |
+          mkdir -p build/android
+
+      - name: Build Android APK (Release No Keystore)
+        run: |
+          # Chạy lệnh export game sang định dạng Android APK
+          # "Android" là tên cấu hình Preset bạn đặt trong Godot Editor
+          ./godot --headless --export-release "Android" build/android/game-release.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-android-apk
+          path: build/android/game-release.apk
+          retention-days: 7
+ 
