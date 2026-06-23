@@ -23,27 +23,15 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Download Godot Engine & Export Templates (TuxFamily Server)
-        run: |
-          # Tải Godot Engine từ server TuxFamily chính thức (không bao giờ bị chặn redirect)
-          curl -o Godot_linux.zip https://tuxfamily.org
-          unzip Godot_linux.zip
-          mv Godot_v4.6.3-stable_linux.x86_64 godot
-          chmod +x godot
-
-          # Tải và cài đặt Export Templates
-          curl -o Godot_templates.tpz https://tuxfamily.org
-          mkdir -p ~/.local/share/godot/export_templates/4.6.3.stable
-          unzip Godot_templates.tpz -d templates_extracted
-          mv templates_extracted/templates/* ~/.local/share/godot/export_templates/4.6.3.stable/
-          
-          # Dọn dẹp bộ nhớ đệm
-          rm -rf templates_extracted Godot_linux.zip Godot_templates.tpz
+      - name: Setup Godot Engine & Templates
+        uses: chickenandpork/setup-godot@v1
+        with:
+          version: "4.6.3"
+          use-mono: false
 
       - name: Auto-Create Export Presets File
         run: |
-          # Tự động tạo file cấu hình export_presets.cfg nếu dự án chưa có hoặc bị .gitignore chặn
-          # Điều này đảm bảo lệnh build không bao giờ lỗi "Preset not found"
+          # Tự động tạo file cấu hình để không bị lỗi thiếu thiết lập Android
           cat << 'EOF' > export_presets.cfg
           [preset.0]
           name="Android"
@@ -84,8 +72,8 @@ jobs:
 
       - name: Build Android APK (Release No Keystore)
         run: |
-          # Chạy build không cần giao diện (headless)
-          ./godot --headless --export-release "Android" build/android/game-release.apk
+          # Sử dụng trực tiếp lệnh godot đã được setup ở bước trên
+          godot --headless --export-release "Android" build/android/game-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
