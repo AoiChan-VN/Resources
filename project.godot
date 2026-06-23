@@ -1,0 +1,22 @@
+config_version=5
+
+[application]
+
+config/name="Godot Mobile Game"
+config/tags=PackedStringArray("mobile")
+config/features=PackedStringArray("4.6", "Mobile", "Forward Plus")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1152
+window/size/viewport_height=648
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[rendering]
+
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
+ 
