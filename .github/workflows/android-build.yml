@@ -7,9 +7,6 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
-permissions: 
-    actions: write
-
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -26,15 +23,28 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Godot Engine & Templates
-        uses: chickenandpork/setup-godot@v1
-        with:
-          version: "4.6.3"
-          use-mono: false
+      - name: Download Godot via GitHub CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Sử dụng GitHub CLI (gh) có sẵn trên server để tải file trực tiếp từ kho Godot
+          gh release download 4.6.3-stable --repo godotengine/godot --pattern "Godot_v4.6.3-stable_linux.x86_64.zip"
+          unzip Godot_v4.6.3-stable_linux.x86_64.zip
+          mv Godot_v4.6.3-stable_linux.x86_64 godot
+          chmod +x godot
+
+          # Tải Export Templates
+          gh release download 4.6.3-stable --repo godotengine/godot --pattern "Godot_v4.6.3-stable_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates/4.6.3.stable
+          unzip Godot_v4.6.3-stable_export_templates.tpz -d templates_extracted
+          mv templates_extracted/templates/* ~/.local/share/godot/export_templates/4.6.3.stable/
+          
+          # Dọn dẹp tệp tin tạm
+          rm -rf templates_extracted Godot_v4.6.3-stable_export_templates.tpz Godot_v4.6.3-stable_linux.x86_64.zip
 
       - name: Auto-Create Export Presets File
         run: |
-          # Tự động tạo file cấu hình để không bị lỗi thiếu thiết lập Android
+          # Tự động tạo cấu hình export_presets.cfg chuẩn không cần keystore
           cat << 'EOF' > export_presets.cfg
           [preset.0]
           name="Android"
@@ -75,8 +85,8 @@ jobs:
 
       - name: Build Android APK (Release No Keystore)
         run: |
-          # Sử dụng trực tiếp lệnh godot đã được setup ở bước trên
-          godot --headless --export-release "Android" build/android/game-release.apk
+          # Thực thi build không giao diện
+          ./godot --headless --export-release "Android" build/android/game-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
