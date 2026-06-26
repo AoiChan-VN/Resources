@@ -37,7 +37,7 @@ jobs:
           gh release download 4.7-stable --repo godotengine/godot --pattern "Godot_v4.7-stable_export_templates.tpz"
           mkdir -p ~/.local/share/godot/export_templates/4.7.stable
           unzip Godot_v4.7-stable_export_templates.tpz -d templates_extracted
-          mv templates_extracted/templates/* ~/.local/share/godot/export_templates/4.6.3.stable/
+          mv templates_extracted/templates/* ~/.local/share/godot/export_templates/4.7.stable/
           
           # Dọn dẹp tệp tin tạm
           rm -rf templates_extracted Godot_v4.7-stable_export_templates.tpz Godot_v4.7-stable_linux.x86_64.zip
